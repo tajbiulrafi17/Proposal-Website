@@ -545,10 +545,9 @@
               fill="none"
             />
           </svg>
-          <h2 class="celebrate-title">She said yes</h2>
+          <h2 class="celebrate-title">She said YES</h2>
           <p class="celebrate-msg" id="celebrate-message"></p>
-          <button class="music-toggle" id="music-toggle">Play our song</button>
-          <!-- REPLACE: point src at a real audio file -->
+          <button class="music-toggle" id="music-toggle">Play song</button>
           <audio id="bg-audio" loop preload="auto">
             <source src="./song.mp3" type="audio/mpeg" />
           </audio>
@@ -1062,7 +1061,7 @@
 
         function markPlaying() {
           playing = true;
-          musicToggle.textContent = "Pause our song";
+          musicToggle.textContent = "Pause song";
         }
 
         function ensureMusicPlaying() {
@@ -1112,7 +1111,7 @@
             ensureMusicPlaying();
           } else {
             audio.pause();
-            musicToggle.textContent = "Play our song";
+            musicToggle.textContent = "Play song";
             playing = false;
           }
         });

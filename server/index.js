@@ -25,8 +25,10 @@ app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: false })); // for the /admin login form
 app.use(cookieParser(SESSION_SECRET));
 
-// Serve the proposal page itself (adjust/remove if you host the frontend elsewhere)
-app.use(express.static(path.join(__dirname, "..", "frontend")));
+// Serve the proposal page itself — lives in server/static so it's part of
+// the same build context (Railway's "Root Directory: server" setting only
+// includes this folder, not sibling folders like the old ../frontend).
+app.use(express.static(path.join(__dirname, "static")));
 
 /* =========================================================
    POST /api/events
@@ -36,13 +38,16 @@ app.use(express.static(path.join(__dirname, "..", "frontend")));
    ========================================================= */
 app.post("/api/events", async (req, res) => {
   try {
-    const events = Array.isArray(req.body && req.body.events) ? req.body.events : [];
+    const events = Array.isArray(req.body && req.body.events)
+      ? req.body.events
+      : [];
     if (events.length === 0) return res.status(204).end();
 
     // Basic shape validation — drop anything malformed rather than 500ing,
     // since a bad event from the client should never break the batch.
     const clean = events.filter(isValidEvent).slice(0, 50);
-    if (clean.length === 0) return res.status(400).json({ error: "no valid events" });
+    if (clean.length === 0)
+      return res.status(400).json({ error: "no valid events" });
 
     const client = await pool.connect();
     try {
@@ -53,7 +58,11 @@ app.post("/api/events", async (req, res) => {
           `INSERT INTO sessions (id, user_agent, viewport, last_seen_at)
            VALUES ($1, $2, $3, now())
            ON CONFLICT (id) DO UPDATE SET last_seen_at = now()`,
-          [evt.sessionId, evt.userAgent || null, evt.viewport ? JSON.stringify(evt.viewport) : null]
+          [
+            evt.sessionId,
+            evt.userAgent || null,
+            evt.viewport ? JSON.stringify(evt.viewport) : null,
+          ],
         );
 
         await client.query(
@@ -66,8 +75,8 @@ app.post("/api/events", async (req, res) => {
             evt.screen || null,
             evt.label || null,
             evt.meta ? JSON.stringify(evt.meta) : null,
-            evt.t ? new Date(evt.t) : new Date()
-          ]
+            evt.t ? new Date(evt.t) : new Date(),
+          ],
         );
 
         io.to("dashboard").emit("event", {
@@ -77,7 +86,7 @@ app.post("/api/events", async (req, res) => {
           screen: evt.screen,
           label: evt.label,
           t: evt.t,
-          msSinceStart: evt.msSinceStart
+          msSinceStart: evt.msSinceStart,
         });
 
         if (evt.event === "session_start") {
@@ -123,8 +132,8 @@ async function notifyWebhook(evt) {
       text: "New proposal session started",
       sessionId: evt.sessionId,
       startedAt: evt.t,
-      userAgent: evt.userAgent
-    })
+      userAgent: evt.userAgent,
+    }),
   });
 }
 
@@ -140,7 +149,7 @@ app.get("/api/sessions", requireAdminAuth, async (req, res) => {
       `SELECT id, started_at, last_seen_at, user_agent, viewport, ended_at
        FROM sessions
        ORDER BY last_seen_at DESC
-       LIMIT 50`
+       LIMIT 50`,
     );
 
     const { rows: events } = await pool.query(
@@ -148,7 +157,7 @@ app.get("/api/sessions", requireAdminAuth, async (req, res) => {
        FROM events
        WHERE session_id = ANY($1::uuid[])
        ORDER BY session_id, seq ASC`,
-      [sessions.map((s) => s.id)]
+      [sessions.map((s) => s.id)],
     );
 
     const bySession = {};
@@ -174,7 +183,9 @@ app.get("/api/sessions", requireAdminAuth, async (req, res) => {
    ========================================================= */
 app.get("/admin", (req, res) => {
   if (!DASHBOARD_PASSWORD) {
-    return res.status(503).send("Set DASHBOARD_PASSWORD in your .env to enable /admin.");
+    return res
+      .status(503)
+      .send("Set DASHBOARD_PASSWORD in your .env to enable /admin.");
   }
   if (isAdminAuthed(req)) {
     return res.sendFile(path.join(__dirname, "public", "dashboard.html"));
@@ -184,7 +195,9 @@ app.get("/admin", (req, res) => {
 
 app.post("/admin", (req, res) => {
   if (!DASHBOARD_PASSWORD) {
-    return res.status(503).send("Set DASHBOARD_PASSWORD in your .env to enable /admin.");
+    return res
+      .status(503)
+      .send("Set DASHBOARD_PASSWORD in your .env to enable /admin.");
   }
 
   const submitted = (req.body && req.body.password) || "";
@@ -201,7 +214,7 @@ app.post("/admin", (req, res) => {
     signed: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: ADMIN_COOKIE_MAX_AGE
+    maxAge: ADMIN_COOKIE_MAX_AGE,
   });
   res.redirect("/admin");
 });
@@ -212,7 +225,11 @@ app.get("/admin/logout", (req, res) => {
 });
 
 function isAdminAuthed(req) {
-  return !!SESSION_SECRET && req.signedCookies && req.signedCookies[ADMIN_COOKIE] === "ok";
+  return (
+    !!SESSION_SECRET &&
+    req.signedCookies &&
+    req.signedCookies[ADMIN_COOKIE] === "ok"
+  );
 }
 
 function requireAdminAuth(req, res, next) {
@@ -228,9 +245,14 @@ io.use((socket, next) => {
     const header = socket.handshake.headers.cookie || "";
     const parsed = cookie.parse(header);
     const raw = parsed[ADMIN_COOKIE];
-    const unsigned = raw && raw.startsWith("s:") ? signature.unsign(raw.slice(2), SESSION_SECRET) : false;
+    const unsigned =
+      raw && raw.startsWith("s:")
+        ? signature.unsign(raw.slice(2), SESSION_SECRET)
+        : false;
     if (unsigned === "ok") return next();
-  } catch (e) { /* falls through to error below */ }
+  } catch (e) {
+    /* falls through to error below */
+  }
   next(new Error("unauthorized"));
 });
 
