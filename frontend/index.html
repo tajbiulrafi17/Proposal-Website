@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>A Question For You</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.2/confetti.browser.min.js"
+      defer
+    ></script>
+
+    <style>
+      /* ============================================================
+     DESIGN TOKENS
+     A bright, airy palette: white ground, warm ink type, one
+     metallic gold accent, one soft petal pink for the particles.
+     Same fashion-house display serif + workhorse sans pairing as
+     before, now staged for daylight instead of a dark room.
+     ============================================================ */
+      :root {
+        --bg: #ffffff;
+        --bg-elevated: #fbf7f1;
+        --ivory: #2b241d;
+        --ivory-soft: rgba(43, 36, 29, 0.62);
+        --ivory-faint: rgba(43, 36, 29, 0.12);
+        --gold: #b08d57;
+        --gold-bright: #c9a46a;
+        --petal: #e7b4b8;
+
+        --font-display: "Bodoni Moda", Georgia, serif;
+        --font-body: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+
+        --dur: 620ms;
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow-x: hidden;
+        background: var(--bg);
+        color: var(--ivory);
+        font-family: var(--font-body);
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      #app {
+        position: relative;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          radial-gradient(
+            ellipse 90% 55% at 50% -8%,
+            rgba(231, 180, 184, 0.16),
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse 70% 40% at 50% 108%,
+            rgba(176, 141, 87, 0.08),
+            transparent 55%
+          ),
+          var(--bg);
+        overflow: hidden;
+      }
+
+      /* ---------- gentle floating hearts & petals ---------- */
+      #particles {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .particle {
+        position: absolute;
+        bottom: -30px;
+        left: var(--x, 50%);
+        opacity: 0;
+        animation: drift var(--dur-p, 20s) linear infinite;
+        animation-delay: var(--delay, 0s);
+        will-change: transform, opacity;
+      }
+      .particle.heart {
+        font-family: var(--font-display);
+        font-size: var(--size, 16px);
+        color: var(--petal);
+      }
+      .particle.petal {
+        width: var(--size, 10px);
+        height: calc(var(--size, 10px) * 0.72);
+        background: var(--petal);
+        border-radius: 60% 0 60% 0;
+      }
+      @keyframes drift {
+        0% {
+          transform: translateY(0) translateX(0) rotate(var(--rot0, 0deg));
+          opacity: 0;
+        }
+        12% {
+          opacity: 0.5;
+        }
+        88% {
+          opacity: 0.3;
+        }
+        100% {
+          transform: translateY(-110vh) translateX(var(--drift, 20px))
+            rotate(var(--rot1, 40deg));
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .particle {
+          display: none;
+        }
+      }
+
+      /* ---------- screens ---------- */
+      .screen {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 32px 24px;
+        z-index: 2;
+        opacity: 0;
+        transform: scale(0.97);
+        pointer-events: none;
+        transition:
+          opacity var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
+      }
+      .screen.active {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .screen {
+          transition: opacity 200ms linear;
+          transform: none !important;
+        }
+      }
+
+      .screen-inner {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+      }
+
+      /* ---------- welcome screen: round framed photo ---------- */
+      .photo-frame {
+        position: relative;
+        width: 156px;
+        height: 156px;
+        border-radius: 50%;
+        padding: 8px;
+      }
+      .photo-frame::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid var(--gold);
+        opacity: 0.55;
+      }
+      .photo-frame::after {
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: 50%;
+        border: 1px solid var(--gold);
+        opacity: 0.55;
+      }
+      .photo-frame img {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        display: block;
+        box-shadow: 0 18px 40px -18px rgba(43, 36, 29, 0.35);
+      }
+
+      h1.name {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 500;
+        font-size: clamp(1.9rem, 8vw, 2.5rem);
+        letter-spacing: 0.01em;
+        color: var(--ivory);
+        margin: 0;
+        min-height: 1.2em;
+      }
+      .name .cursor {
+        display: inline-block;
+        width: 1px;
+        margin-left: 3px;
+        background: var(--gold);
+        animation: blink 900ms steps(1) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .quote-stage {
+        position: relative;
+        height: 4.6em;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .quote {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 400;
+        font-size: 1.12rem;
+        color: var(--ivory-soft);
+        line-height: 1.5;
+        opacity: 0;
+        transition: opacity 1000ms ease;
+        padding: 0 6px;
+      }
+      .quote.visible {
+        opacity: 1;
+      }
+
+      /* ---------- buttons: pill, one metallic accent ---------- */
+      .btn {
+        font-family: var(--font-body);
+        font-weight: 500;
+        font-size: 0.95rem;
+        letter-spacing: 0.01em;
+        border-radius: 999px;
+        padding: 15px 36px;
+        min-height: 44px;
+        cursor: pointer;
+        touch-action: manipulation;
+        transition:
+          transform 220ms var(--ease),
+          background 220ms ease,
+          border-color 220ms ease,
+          color 220ms ease;
+      }
+      .btn:active {
+        transform: scale(0.96);
+      }
+      .btn-primary {
+        background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+        color: #1a1408;
+        border: none;
+      }
+      .btn-primary:hover {
+        filter: brightness(1.06);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--ivory-soft);
+        border: 1px solid var(--ivory-faint);
+      }
+      .btn-ghost:hover {
+        border-color: var(--gold);
+        color: var(--ivory);
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      /* ---------- question / convince screens ---------- */
+      h2.question {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 500;
+        font-size: clamp(1.9rem, 8vw, 2.5rem);
+        color: var(--ivory);
+        margin: 0;
+        line-height: 1.25;
+      }
+
+      .plead-mark {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-size: 1.6rem;
+        color: var(--gold);
+        animation: breathe 3.2s ease-in-out infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .plead-mark {
+          animation: none;
+        }
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: 0.55;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.08);
+        }
+      }
+
+      .reasons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-height: 74px;
+      }
+      .reason-card {
+        background: var(--bg-elevated);
+        border: 1px solid var(--ivory-faint);
+        box-shadow: 0 10px 24px -18px rgba(43, 36, 29, 0.3);
+        border-radius: 10px;
+        padding: 14px 20px;
+        font-family: var(--font-body);
+        font-size: 0.94rem;
+        color: var(--ivory-soft);
+        text-align: center;
+        opacity: 0;
+        transform: translateY(6px);
+        transition:
+          opacity 380ms ease,
+          transform 380ms ease;
+      }
+      .reason-card.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .reason-card {
+          transition: opacity 250ms linear;
+          transform: none !important;
+        }
+      }
+
+      /* ---------- final screen ---------- */
+      #screen-final {
+        overflow: hidden;
+      }
+      .final-stage {
+        position: relative;
+        width: 100%;
+        max-width: 460px;
+        height: min(56vh, 400px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #btn-final-yes {
+        position: relative;
+        z-index: 3;
+      }
+      #btn-final-no {
+        position: absolute;
+        z-index: 4;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, calc(-50% + 74px));
+        transition:
+          top 260ms var(--ease),
+          left 260ms var(--ease);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #btn-final-no {
+          transition: none;
+        }
+      }
+
+      /* ---------- celebration screen ---------- */
+      .celebrate-icon {
+        color: var(--gold);
+      }
+      h2.celebrate-title {
+        font-family: var(--font-display);
+        font-style: italic;
+        font-weight: 600;
+        font-size: clamp(2rem, 9vw, 2.75rem);
+        color: var(--ivory);
+        margin: 4px 0 0;
+      }
+      p.celebrate-msg {
+        font-family: var(--font-body);
+        font-size: 1rem;
+        color: var(--ivory-soft);
+        line-height: 1.7;
+        max-width: 360px;
+      }
+      .music-toggle {
+        margin-top: 4px;
+        background: none;
+        border: none;
+        border-bottom: 1px solid var(--ivory-faint);
+        border-radius: 0;
+        padding: 4px 2px;
+        font-family: var(--font-body);
+        font-size: 0.85rem;
+        letter-spacing: 0.01em;
+        color: var(--ivory-soft);
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      .music-toggle:hover {
+        color: var(--gold);
+        border-color: var(--gold);
+      }
+
+      .no-press-count {
+        font-family: var(--font-body);
+        font-size: 0.78rem;
+        color: var(--ivory-soft);
+        opacity: 0.7;
+        letter-spacing: 0.02em;
+      }
+
+      #confetti-canvas {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="particles" aria-hidden="true"></div>
+
+      <!-- 1. WELCOME -->
+      <section class="screen active" id="screen-welcome" data-screen="welcome">
+        <div class="screen-inner">
+          <div class="photo-frame">
+            <img src="her.jpeg" alt="" id="her-photo" />
+          </div>
+          <h1 class="name" id="her-name">
+            <span id="name-text"></span
+            ><span class="cursor" id="name-cursor"></span>
+          </h1>
+          <div class="quote-stage" id="quote-stage"></div>
+          <button class="btn btn-primary" id="btn-open">Begin</button>
+        </div>
+      </section>
+
+      <!-- 2. QUESTION -->
+      <section class="screen" id="screen-question" data-screen="question">
+        <div class="screen-inner">
+          <h2 class="question">Will you marry me?</h2>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-q-yes">Yes</button>
+            <button class="btn btn-ghost" id="btn-q-no">No</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. CONVINCE -->
+      <section class="screen" id="screen-convince" data-screen="convince">
+        <div class="screen-inner">
+          <div class="plead-mark">Wait</div>
+          <h2 class="question" id="convince-heading">
+            Are you sure? Think about it again...
+          </h2>
+          <div class="reasons">
+            <div class="reason-card" id="reason-card"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-c-yes">Yes</button>
+            <button class="btn btn-ghost" id="btn-c-no">No</button>
+          </div>
+          <div class="no-press-count" id="no-count"></div>
+        </div>
+      </section>
+
+      <!-- 4. FINAL -->
+      <section class="screen" id="screen-final" data-screen="final">
+        <div class="screen-inner">
+          <h2 class="question">Last chance...</h2>
+          <div class="final-stage" id="final-stage">
+            <button class="btn btn-primary" id="btn-final-yes">Yes</button>
+            <button class="btn btn-ghost" id="btn-final-no">No</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CELEBRATION -->
+      <section class="screen" id="screen-celebration" data-screen="celebration">
+        <div class="screen-inner">
+          <svg
+            class="celebrate-icon"
+            width="44"
+            height="44"
+            viewBox="0 0 44 44"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <circle
+              cx="22"
+              cy="28"
+              r="12"
+              stroke="currentColor"
+              stroke-width="1.3"
+            />
+            <path
+              d="M22 15 L18 7 L22 3 L26 7 Z"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linejoin="round"
+              fill="none"
+            />
+          </svg>
+          <h2 class="celebrate-title">She said yes</h2>
+          <p class="celebrate-msg" id="celebrate-message"></p>
+          <button class="music-toggle" id="music-toggle">Play our song</button>
+          <!-- REPLACE: point src at a real audio file -->
+          <audio id="bg-audio" loop preload="auto">
+            <source src="./song.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        /* ============================================================
+     CONFIG — edit everything here, no need to touch the logic below.
+     ============================================================ */
+        const CONFIG = {
+          herName: "Sajiya",
+          photoSrc: "./her.jpeg",
+
+          quotes: [
+            "“I don't know what tomorrow holds, but I know I want you in it.”",
+            "“I've liked you for a while now. I just never found the right moment — so I made one.”",
+            "“I'm not sure how to say this, so I built a whole website instead.”",
+            "“Out of everyone, it's you I keep choosing to think about.”",
+          ],
+
+          // shown one by one on the CONVINCE screen
+          reasons: [
+            "Because no one else will make you laugh the way I will.",
+            "Because no one else will understand you the way I will.",
+            "Because no one else will take care of you the way I will.",
+            "Because no one else will love you the way I will.",
+          ],
+
+          // convince-screen heading changes each time "No" is pressed (index 0
+          // is the first press). If pressed more times than the array has
+          // entries, the last message repeats.
+          pleadingMessages: [
+            "Wait — really? Give it one more thought...",
+            "Come on, you know it's a yes...",
+            "Okay, last thought before we move on...",
+          ],
+
+          // number of "No" presses on the CONVINCE screen before moving to FINAL
+          noPressesBeforeFinal: 4,
+
+          finalMessage: "Last chance...",
+
+          celebrateMessage:
+            "You just made me the happiest person alive. I can't wait to spend forever with you.",
+        };
+
+        /* ============================================================
+     TRACKER — lightweight analytics/session module.
+     Never blocks the UI; fails silently on any error.
+     ============================================================ */
+        const Tracker = (function () {
+          let sessionId;
+          try {
+            sessionId = sessionStorage.getItem("proposal_session_id");
+            if (!sessionId) {
+              sessionId = crypto.randomUUID();
+              sessionStorage.setItem("proposal_session_id", sessionId);
+            }
+          } catch (e) {
+            sessionId =
+              "fallback-" +
+              Date.now() +
+              "-" +
+              Math.random().toString(16).slice(2);
+          }
+
+          const startTime = Date.now();
+          let seq = 0;
+          let queue = [];
+          let currentScreen = "welcome";
+          let flushTimer = null;
+          let lastDodgeEmit = 0;
+
+          const STORAGE_KEY = "proposal_event_queue";
+
+          function loadPersisted() {
+            try {
+              const raw = localStorage.getItem(STORAGE_KEY);
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) queue = queue.concat(parsed);
+              }
+            } catch (e) {
+              /* fail silently */
+            }
+          }
+
+          function persist() {
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
+            } catch (e) {
+              /* fail silently */
+            }
+          }
+
+          function clearPersisted() {
+            try {
+              localStorage.removeItem(STORAGE_KEY);
+            } catch (e) {
+              /* noop */
+            }
+          }
+
+          function baseEvent(event, label) {
+            seq += 1;
+            return {
+              sessionId: sessionId,
+              seq: seq,
+              event: event,
+              screen: currentScreen,
+              label: label || null,
+              t: new Date().toISOString(),
+              msSinceStart: Date.now() - startTime,
+              userAgent: navigator.userAgent,
+              viewport: { w: window.innerWidth, h: window.innerHeight },
+            };
+          }
+
+          function enqueue(event, label) {
+            try {
+              queue.push(baseEvent(event, label));
+              persist();
+              if (queue.length >= 10) flush();
+            } catch (e) {
+              /* fail silently */
+            }
+          }
+
+          function flush(useBeacon) {
+            if (queue.length === 0) return;
+            const batch = queue;
+            queue = [];
+            persist();
+
+            const payload = JSON.stringify({ events: batch });
+
+            try {
+              if (useBeacon && navigator.sendBeacon) {
+                const blob = new Blob([payload], { type: "application/json" });
+                const ok = navigator.sendBeacon("/api/events", blob);
+                if (!ok) {
+                  queue = batch.concat(queue);
+                  persist();
+                }
+                return;
+              }
+              fetch("/api/events", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: payload,
+                keepalive: true,
+              })
+                .then(function (res) {
+                  if (!res.ok) {
+                    queue = batch.concat(queue);
+                    persist();
+                  } else {
+                    clearPersisted();
+                  }
+                })
+                .catch(function () {
+                  queue = batch.concat(queue);
+                  persist();
+                });
+            } catch (e) {
+              queue = batch.concat(queue);
+              persist();
+            }
+          }
+
+          function start() {
+            try {
+              loadPersisted();
+              enqueue("session_start");
+              flushTimer = setInterval(function () {
+                flush(false);
+              }, 2000);
+
+              document.addEventListener("visibilitychange", function () {
+                if (document.visibilityState === "hidden") flush(true);
+              });
+              window.addEventListener("pagehide", function () {
+                flush(true);
+              });
+            } catch (e) {
+              /* fail silently */
+            }
+          }
+
+          return {
+            start: start,
+            setScreen: function (name) {
+              currentScreen = name;
+              enqueue("screen_change", name);
+            },
+            click: function (label, meta) {
+              enqueue("button_click", label + (meta ? " (" + meta + ")" : ""));
+            },
+            dodge: function () {
+              const now = Date.now();
+              if (now - lastDodgeEmit < 500) return;
+              lastDodgeEmit = now;
+              enqueue("dodge_attempt");
+            },
+          };
+        })();
+
+        /* ============================================================
+     SCREEN NAVIGATION
+     ============================================================ */
+        const screens = Array.prototype.slice.call(
+          document.querySelectorAll(".screen"),
+        );
+        function showScreen(name) {
+          screens.forEach(function (s) {
+            s.classList.toggle("active", s.dataset.screen === name);
+          });
+          Tracker.setScreen(name);
+          if (name === "final") startDodgeLoop();
+          else stopDodgeLoop();
+        }
+
+        /* ============================================================
+     WELCOME SCREEN — photo, typewriter name, quote carousel
+     ============================================================ */
+        document.getElementById("her-photo").src = CONFIG.photoSrc;
+
+        function typewriter(elId, cursorId, text, speed) {
+          const el = document.getElementById(elId);
+          const cursor = document.getElementById(cursorId);
+          const reduced = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          if (reduced) {
+            el.textContent = text;
+            if (cursor) cursor.style.display = "none";
+            return;
+          }
+          let i = 0;
+          (function tick() {
+            if (i <= text.length) {
+              el.textContent = text.slice(0, i);
+              i++;
+              setTimeout(tick, speed);
+            }
+          })();
+        }
+        typewriter("name-text", "name-cursor", CONFIG.herName, 90);
+
+        (function quoteCarousel() {
+          const stage = document.getElementById("quote-stage");
+          CONFIG.quotes.forEach(function (q) {
+            const div = document.createElement("div");
+            div.className = "quote";
+            div.textContent = q;
+            stage.appendChild(div);
+          });
+          const items = stage.querySelectorAll(".quote");
+          if (items.length === 0) return;
+          let idx = 0;
+          items[0].classList.add("visible");
+          setInterval(function () {
+            items[idx].classList.remove("visible");
+            idx = (idx + 1) % items.length;
+            items[idx].classList.add("visible");
+          }, 5000);
+        })();
+
+        (function particles() {
+          const reduced = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          if (reduced) return;
+          const field = document.getElementById("particles");
+          const kinds = ["heart", "heart", "petal"]; // mostly hearts, some petals
+          const heartGlyphs = ["♡", "❤"];
+          for (let i = 0; i < 20; i++) {
+            const kind = kinds[i % kinds.length];
+            const span = document.createElement("span");
+            span.className = "particle " + kind;
+            if (kind === "heart")
+              span.textContent = heartGlyphs[i % heartGlyphs.length];
+            span.style.setProperty("--x", Math.random() * 100 + "%");
+            span.style.setProperty("--size", 20 + Math.random() * 12 + "px");
+            span.style.setProperty("--dur-p", 32 + Math.random() * 12 + "s");
+            span.style.setProperty("--delay", Math.random() * -20 + "s");
+            span.style.setProperty("--drift", Math.random() * 60 - 30 + "px");
+            span.style.setProperty("--rot0", Math.random() * 30 - 15 + "deg");
+            span.style.setProperty("--rot1", Math.random() * 60 + 10 + "deg");
+            field.appendChild(span);
+          }
+        })();
+
+        document
+          .getElementById("btn-open")
+          .addEventListener("click", function () {
+            Tracker.click("open_surprise");
+            showScreen("question");
+          });
+
+        /* ============================================================
+     QUESTION SCREEN
+     ============================================================ */
+        document
+          .getElementById("btn-q-yes")
+          .addEventListener("click", function () {
+            Tracker.click("yes", "question_screen");
+            goToCelebration();
+          });
+        document
+          .getElementById("btn-q-no")
+          .addEventListener("click", function () {
+            Tracker.click("no", "question_screen");
+            showScreen("convince");
+          });
+
+        /* ============================================================
+     CONVINCE SCREEN
+     ============================================================ */
+        let noPressCount = 0;
+
+        function showReason(index) {
+          const card = document.getElementById("reason-card");
+          const text =
+            CONFIG.reasons[Math.min(index, CONFIG.reasons.length - 1)];
+          card.classList.remove("show");
+          setTimeout(function () {
+            card.textContent = text;
+            card.classList.add("show");
+          }, 200);
+        }
+        showReason(0); // first reason is shown as soon as the convince screen appears
+
+        const convinceHeading = document.getElementById("convince-heading");
+        const noCountLabel = document.getElementById("no-count");
+        const btnCYes = document.getElementById("btn-c-yes");
+        const btnCNo = document.getElementById("btn-c-no");
+
+        btnCYes.addEventListener("click", function () {
+          Tracker.click("yes", "convince_screen, noPressCount=" + noPressCount);
+          goToCelebration();
+        });
+
+        btnCNo.addEventListener("click", function () {
+          noPressCount += 1;
+          Tracker.click("no", "convince_screen, noPressCount=" + noPressCount);
+
+          const msgIndex = Math.min(
+            noPressCount - 1,
+            CONFIG.pleadingMessages.length - 1,
+          );
+          convinceHeading.textContent = CONFIG.pleadingMessages[msgIndex];
+          noCountLabel.textContent =
+            "attempt " + noPressCount + " of " + CONFIG.noPressesBeforeFinal;
+          showReason(noPressCount); // reveal the next reason, one per "No" press
+
+          // Yes grows ~20%, No shrinks, per press (capped so it stays usable)
+          const growth = Math.min(noPressCount, CONFIG.noPressesBeforeFinal);
+          btnCYes.style.transform = "scale(" + (1 + 0.2 * growth) + ")";
+          btnCNo.style.transform =
+            "scale(" + Math.max(1 - 0.15 * growth, 0.55) + ")";
+
+          if (noPressCount >= CONFIG.noPressesBeforeFinal) {
+            setTimeout(function () {
+              showScreen("final");
+            }, 500);
+          }
+        });
+
+        /* ============================================================
+     FINAL SCREEN — dodging "No" button
+     ============================================================ */
+        const finalStage = document.getElementById("final-stage");
+        const btnFinalYes = document.getElementById("btn-final-yes");
+        const btnFinalNo = document.getElementById("btn-final-no");
+        let driftInterval = null;
+        const reducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+
+        document.querySelector("#screen-final .question").textContent =
+          CONFIG.finalMessage;
+
+        btnFinalYes.addEventListener("click", function () {
+          Tracker.click("yes", "final_screen");
+          goToCelebration();
+        });
+
+        function repositionNoButton() {
+          if (reducedMotion) return; // stays put; dodging is a motion effect
+          const stageRect = finalStage.getBoundingClientRect();
+          const btnRect = btnFinalNo.getBoundingClientRect();
+          const yesRect = btnFinalYes.getBoundingClientRect();
+
+          const pad = 6;
+          const w = btnRect.width || 96;
+          const h = btnRect.height || 44;
+          const maxX = Math.max(stageRect.width - w - pad, pad);
+          const maxY = Math.max(stageRect.height - h - pad, pad);
+
+          let x,
+            y,
+            tries = 0;
+          do {
+            x = pad + Math.random() * (maxX - pad);
+            y = pad + Math.random() * (maxY - pad);
+            tries++;
+          } while (tries < 12 && overlaps(x, y, w, h, yesRect, stageRect));
+
+          btnFinalNo.style.left = x + "px";
+          btnFinalNo.style.top = y + "px";
+          btnFinalNo.style.transform = "none";
+          Tracker.dodge();
+        }
+
+        function overlaps(x, y, w, h, yesRect, stageRect) {
+          const yesX = yesRect.left - stageRect.left;
+          const yesY = yesRect.top - stageRect.top;
+          const margin = 16;
+          return (
+            x < yesX + yesRect.width + margin &&
+            x + w > yesX - margin &&
+            y < yesY + yesRect.height + margin &&
+            y + h > yesY - margin
+          );
+        }
+
+        btnFinalNo.addEventListener("mousemove", function () {
+          repositionNoButton();
+        });
+        finalStage.addEventListener("mousemove", function (e) {
+          const r = btnFinalNo.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+          if (dist < 120) repositionNoButton();
+        });
+        btnFinalNo.addEventListener(
+          "touchstart",
+          function (e) {
+            e.preventDefault();
+            repositionNoButton();
+          },
+          { passive: false },
+        );
+
+        function startDodgeLoop() {
+          if (driftInterval || reducedMotion) return;
+          // place it somewhere reasonable once the screen is visible
+          setTimeout(repositionNoButton, 300);
+          driftInterval = setInterval(repositionNoButton, 800);
+        }
+        function stopDodgeLoop() {
+          if (driftInterval) {
+            clearInterval(driftInterval);
+            driftInterval = null;
+          }
+        }
+
+        /* ============================================================
+     CELEBRATION SCREEN
+     ============================================================ */
+        document.getElementById("celebrate-message").textContent =
+          CONFIG.celebrateMessage;
+
+        function goToCelebration() {
+          showScreen("celebration");
+          fireConfetti();
+          ensureMusicPlaying(); // safety net — should already be going by this point
+        }
+
+        function fireConfetti() {
+          if (reducedMotion) return;
+          if (typeof confetti !== "function") return;
+          const duration = 2200;
+          const end = Date.now() + duration;
+          (function frame() {
+            confetti({
+              particleCount: 4,
+              angle: 60,
+              spread: 60,
+              origin: { x: 0 },
+              colors: ["#C7A667", "#E6CB93", "#F4EFE4", "#3A2E17"],
+            });
+            confetti({
+              particleCount: 4,
+              angle: 120,
+              spread: 60,
+              origin: { x: 1 },
+              colors: ["#C7A667", "#E6CB93", "#F4EFE4", "#3A2E17"],
+            });
+            if (Date.now() < end) requestAnimationFrame(frame);
+          })();
+        }
+
+        /* ============================================================
+     BACKGROUND MUSIC — plays for the whole session, from load.
+     Browsers block audio-with-sound before any interaction on the
+     page, so the reliable approach is: start it muted immediately,
+     then unmute on the very first tap/click/keypress anywhere (that
+     usually happens within a second, e.g. her tap on "Begin").
+     ============================================================ */
+        const audio = document.getElementById("bg-audio");
+        const musicToggle = document.getElementById("music-toggle");
+        let playing = false;
+
+        function markPlaying() {
+          playing = true;
+          musicToggle.textContent = "Pause our song";
+        }
+
+        function ensureMusicPlaying() {
+          if (playing) return;
+          audio.muted = false;
+          audio
+            .play()
+            .then(markPlaying)
+            .catch(function () {
+              /* still blocked — unlock listener below will catch it */
+            });
+        }
+
+        function initMusic() {
+          audio.muted = false;
+          const attempt = audio.play();
+          if (attempt && typeof attempt.then === "function") {
+            attempt.then(markPlaying).catch(function () {
+              // Blocked without a gesture — fall back to silent autoplay, then
+              // unmute the instant she interacts with the page at all.
+              audio.muted = true;
+              audio.play().catch(function () {
+                /* even muted autoplay can rarely fail; ignore */
+              });
+
+              const unlock = function () {
+                audio.muted = false;
+                audio
+                  .play()
+                  .then(markPlaying)
+                  .catch(function () {});
+                document.removeEventListener("click", unlock);
+                document.removeEventListener("touchstart", unlock);
+                document.removeEventListener("keydown", unlock);
+              };
+              document.addEventListener("click", unlock, { once: true });
+              document.addEventListener("touchstart", unlock, {
+                once: true,
+              });
+              document.addEventListener("keydown", unlock, { once: true });
+            });
+          }
+        }
+
+        musicToggle.addEventListener("click", function () {
+          if (!playing) {
+            ensureMusicPlaying();
+          } else {
+            audio.pause();
+            musicToggle.textContent = "Play our song";
+            playing = false;
+          }
+        });
+
+        /* ============================================================
+     BOOT
+     ============================================================ */
+        Tracker.start();
+        initMusic();
+        showScreen("welcome");
+      })();
+    </script>
+  </body>
+</html>

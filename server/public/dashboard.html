@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Proposal Dashboard</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg: #17151A;
+    --panel: #201D24;
+    --border: #322E38;
+    --ink: #EDE9F0;
+    --ink-soft: #9A93A6;
+    --accent: #C9A46A;
+    --live: #6FCF97;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 24px;
+  }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .sub { color: var(--ink-soft); font-size: 0.85rem; margin-bottom: 20px; }
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+    margin-right: 6px;
+  }
+  #sessions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 720px;
+  }
+  .session {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .session-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    cursor: pointer;
+  }
+  .session-head:hover { background: rgba(255,255,255,0.02); }
+  .session-id { font-size: 0.8rem; color: var(--ink-soft); font-family: monospace; }
+  .session-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  .badge {
+    background: rgba(201, 164, 106, 0.15);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+  }
+  .timeline {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 10px 16px 14px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .session.expanded .timeline { display: block; }
+  .timeline-row {
+    display: flex;
+    gap: 10px;
+    font-size: 0.78rem;
+    padding: 4px 0;
+    color: var(--ink-soft);
+    border-bottom: 1px dashed rgba(255,255,255,0.05);
+  }
+  .timeline-row .t { flex: 0 0 70px; color: #6C6578; }
+  .timeline-row .ev { flex: 0 0 110px; color: var(--ink); font-weight: 600; }
+  .timeline-row .detail { flex: 1; }
+  .empty { color: var(--ink-soft); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div style="display:flex; align-items:baseline; justify-content:space-between; max-width:720px;">
+  <h1>Live proposal sessions</h1>
+  <a href="/admin/logout" style="color: var(--ink-soft); font-size: 0.8rem;">Log out</a>
+</div>
+<div class="sub"><span class="status-dot"></span>Updating in real time</div>
+<div id="sessions"><div class="empty">Loading sessions…</div></div>
+
+<script>
+(function () {
+  const sessionsEl = document.getElementById("sessions");
+  const sessions = new Map(); // id -> { session, events: [] }
+
+  function fmtElapsed(startedAt) {
+    const ms = Date.now() - new Date(startedAt).getTime();
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + "s ago";
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + "m ago";
+    return Math.floor(m / 60) + "h ago";
+  }
+
+  function render() {
+    const list = Array.from(sessions.values()).sort(function (a, b) {
+      return new Date(b.session.last_seen_at || b.session.started_at) -
+             new Date(a.session.last_seen_at || a.session.started_at);
+    });
+
+    if (list.length === 0) {
+      sessionsEl.innerHTML = '<div class="empty">No sessions yet.</div>';
+      return;
+    }
+
+    sessionsEl.innerHTML = "";
+    list.forEach(function (entry) {
+      const s = entry.session;
+      const events = entry.events;
+      const lastEvent = events[events.length - 1];
+      const currentScreen = lastEvent ? lastEvent.screen : "welcome";
+      const dodgeCount = events.filter(function (e) { return e.event === "dodge_attempt"; }).length;
+
+      const wrap = document.createElement("div");
+      wrap.className = "session";
+      wrap.innerHTML =
+        '<div class="session-head">' +
+          '<div>' +
+            '<div class="session-id">' + s.id + '</div>' +
+            '<div class="session-meta">' +
+              '<span>started ' + fmtElapsed(s.started_at) + '</span>' +
+              '<span class="badge">' + currentScreen + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="session-meta">' +
+            '<span>' + events.length + ' events</span>' +
+            '<span>' + dodgeCount + ' dodges</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="timeline">' +
+          events.map(function (e) {
+            const time = new Date(e.created_at || e.t).toLocaleTimeString();
+            return '<div class="timeline-row"><span class="t">' + time + '</span>' +
+              '<span class="ev">' + e.event + '</span>' +
+              '<span class="detail">' + (e.screen || "") + (e.label ? " — " + e.label : "") + '</span></div>';
+          }).join("") +
+        '</div>';
+
+      wrap.querySelector(".session-head").addEventListener("click", function () {
+        wrap.classList.toggle("expanded");
+      });
+
+      sessionsEl.appendChild(wrap);
+    });
+  }
+
+  fetch("/api/sessions")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      (data.sessions || []).forEach(function (s) {
+        sessions.set(s.id, { session: s, events: s.events || [] });
+      });
+      render();
+    })
+    .catch(function () {
+      sessionsEl.innerHTML = '<div class="empty">Could not load sessions.</div>';
+    });
+
+  const socket = io();
+  socket.on("connect_error", function () {
+    // cookie missing/expired mid-session — send back through the login page
+    window.location.href = "/admin";
+  });
+  socket.on("event", function (evt) {
+    if (!sessions.has(evt.sessionId)) {
+      sessions.set(evt.sessionId, {
+        session: { id: evt.sessionId, started_at: evt.t, last_seen_at: evt.t },
+        events: []
+      });
+    }
+    const entry = sessions.get(evt.sessionId);
+    entry.events.push(evt);
+    entry.session.last_seen_at = evt.t;
+    render();
+  });
+
+  setInterval(render, 15000); // keep "x ago" labels fresh
+})();
+</script>
+
+</body>
+</html>
